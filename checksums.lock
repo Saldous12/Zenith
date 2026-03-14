@@ -1,0 +1,104 @@
+package com.zenith.modules.render;
+
+import com.zenith.category.Category;
+import com.zenith.module.Module;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.OptionInstance;
+import net.minecraft.client.Options;
+
+import java.lang.reflect.Field;
+
+/**
+ * RENDER → FullBright
+ * Boosts gamma to 16.0 so the world is fully lit regardless of light levels.
+ * Uses reflection to bypass the private access on {@code Options.gamma} in 1.21.11.
+ */
+public class FullBright extends Module {
+
+    private double savedGamma = 1.0;
+
+    public FullBright() {
+        super("FullBright", Category.RENDER);
+    }
+
+    @Override
+    public void onEnable() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.options == null) return;
+        OptionInstance<Double> opt = getGammaOpt(mc);
+        if (opt != null) savedGamma = opt.get();
+        forceSetGamma(mc, 16.0);
+    }
+
+    @Override
+    public void onDisable() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.options == null) return;
+        forceSetGamma(mc, savedGamma);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /** Reflectively retrieves the gamma {@link OptionInstance} from {@link Options}. */
+    @SuppressWarnings("unchecked")
+    private static OptionInstance<Double> getGammaOpt(Minecraft mc) {
+        try {
+            Field f = Options.class.getDeclaredField("gamma");
+            f.setAccessible(true);
+            return (OptionInstance<Double>) f.get(mc.options);
+        } catch (NoSuchFieldException ignored) {
+            // Field name might differ — fall back to scanning all OptionInstance<Double> fields
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // Fallback: scan every declared field for the OptionInstance<Double> that holds
+        // a value in the plausible gamma range [0, 2]
+        try {
+            for (Field f : Options.class.getDeclaredFields()) {
+                f.setAccessible(true);
+                Object val = f.get(mc.options);
+                if (val instanceof OptionInstance<?> oi) {
+                    Object inner = oi.get();
+                    if (inner instanceof Double d && d >= 0.0 && d <= 2.0) {
+                        return (OptionInstance<Double>) oi;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /** Forces the gamma option's internal value field to the given double. */
+    private static void forceSetGamma(Minecraft mc, double gamma) {
+        OptionInstance<Double> opt = getGammaOpt(mc);
+        if (opt == null) return;
+
+        // Try the Mojang-mapped field name "value" first
+        if (trySetField(opt, "value", gamma)) return;
+
+        // Fallback: scan OptionInstance fields for the first Double field
+        for (Field f : OptionInstance.class.getDeclaredFields()) {
+            try {
+                f.setAccessible(true);
+                if (f.get(opt) instanceof Double) {
+                    f.set(opt, gamma);
+                    return;
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private static boolean trySetField(Object target, String name, Object value) {
+        try {
+            Field f = target.getClass().getDeclaredField(name);
+            f.setAccessible(true);
+            f.set(target, value);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}

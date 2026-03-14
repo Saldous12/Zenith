@@ -1,0 +1,22 @@
+package com.zenith.modules.visual;
+
+import com.zenith.category.Category;
+import com.zenith.module.Module;
+import com.zenith.setting.SliderSetting;
+
+public class PlayerESP extends Module {
+
+    public final SliderSetting alpha = new SliderSetting("Alpha",      1.0, 0.1, 1.0);
+    public final SliderSetting width = new SliderSetting("Line Width", 1.5, 0.5, 4.0);
+
+    public PlayerESP() {
+        super("PlayerESP", Category.VISUAL);
+        settings.add(alpha);
+        settings.add(width);
+    }
+
+    @Override
+    public void onInit() {
+        // disabled
+    }
+}

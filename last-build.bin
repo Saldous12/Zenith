@@ -1,0 +1,35 @@
+package com.zenith.setting;
+
+/**
+ * A numeric slider setting with configurable min / max.
+ */
+public class SliderSetting extends Setting<Double> {
+    private final double min;
+    private final double max;
+
+    public SliderSetting(String name, double defaultValue, double min, double max) {
+        super(name, defaultValue);
+        this.min = min;
+        this.max = max;
+    }
+
+    public double getMin() { return min; }
+    public double getMax() { return max; }
+
+    /** Clamps the supplied value to [min, max] before storing. */
+    @Override
+    public void setValue(Double val) {
+        super.setValue(Math.max(min, Math.min(max, val)));
+    }
+
+    /** Convenience: set from a float. */
+    public void setValue(float val)  { setValue((double) val); }
+
+    /** Convenience: get as float. */
+    public float getFloat() { return getValue().floatValue(); }
+
+    /** Normalised position in [0, 1]. */
+    public double getPct() {
+        return (max == min) ? 0.0 : (getValue() - min) / (max - min);
+    }
+}

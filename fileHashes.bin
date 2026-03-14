@@ -1,0 +1,51 @@
+package com.zenith;
+
+import com.zenith.gui.ZenithScreen;
+import com.zenith.module.ModuleManager;
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import org.lwjgl.glfw.GLFW;
+
+/**
+ * Zenith — client-side entry point.
+ *
+ * Opens / closes {@link ZenithScreen} on Right-Shift.
+ * Uses {@code GLFW.glfwGetCurrentContext()} instead of
+ * {@code mc.getWindow().getHandle()} to stay compatible across
+ * MC 1.21.x releases where the Window API changed.
+ */
+public class Zenith implements ClientModInitializer {
+
+    public static final String MOD_ID      = "zenith";
+    public static final String MOD_NAME    = "Zenith";
+    public static final String MOD_VERSION = "1.0.0";
+
+    public static final ModuleManager MODULE_MANAGER = new ModuleManager();
+
+    /** Tracks whether Right-Shift was held on the previous tick (edge trigger). */
+    private boolean rightShiftWasHeld = false;
+
+    @Override
+    public void onInitializeClient() {
+        MODULE_MANAGER.init();
+
+        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            MODULE_MANAGER.onTick(mc);
+
+            // glfwGetCurrentContext() is stable across MC versions
+            long glfwWindow     = GLFW.glfwGetCurrentContext();
+            boolean rightShiftHeld = GLFW.glfwGetKey(glfwWindow, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+
+            // Rising edge — open on press, close if already open
+            if (rightShiftHeld && !rightShiftWasHeld) {
+                if (mc.screen instanceof ZenithScreen) {
+                    mc.setScreen(null);
+                } else {
+                    ZenithScreen.INSTANCE = new ZenithScreen();
+                    mc.setScreen(ZenithScreen.INSTANCE);
+                }
+            }
+            rightShiftWasHeld = rightShiftHeld;
+        });
+    }
+}

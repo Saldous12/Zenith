@@ -1,0 +1,68 @@
+package com.zenith.modules.client;
+
+import com.zenith.category.Category;
+import com.zenith.module.Module;
+import com.zenith.module.ModuleManager;
+import com.zenith.setting.SliderSetting;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.minecraft.client.Minecraft;
+
+/**
+ * CLIENT → HUD
+ * Draws a watermark in the top-left corner showing FPS, ping, and the
+ * number of currently active Zenith modules.
+ */
+public class HUD extends Module {
+
+    public static HUD INSTANCE;
+
+    // Running FPS counter (frame-accurate, updated every second)
+    private int  fps        = 0;
+    private int  frameCount = 0;
+    private long lastSecond = System.currentTimeMillis();
+
+    public HUD() {
+        super("HUD", Category.CLIENT);
+        INSTANCE = this;
+        settings.add(new SliderSetting("Scale", 1.0, 0.5, 2.0));
+    }
+
+    @Override
+    public void onInit() {
+        HudRenderCallback.EVENT.register((graphics, tickDelta) -> {
+            if (!isEnabled()) return;
+
+            // Update FPS counter every second
+            frameCount++;
+            long now = System.currentTimeMillis();
+            if (now - lastSecond >= 1000L) {
+                fps        = frameCount;
+                frameCount = 0;
+                lastSecond = now;
+            }
+
+            Minecraft mc   = Minecraft.getInstance();
+            int ping = 0;
+            if (mc.getConnection() != null && mc.player != null) {
+                var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+                if (info != null) ping = info.getLatency();
+            }
+
+            int active = ModuleManager.getInstance().getEnabledCount();
+
+            // Line 1 – client name in accent blue
+            graphics.drawString(mc.font,
+                    "§bZenith §7v1.0",
+                    4, 4, 0xFFFFFFFF, true);
+
+            // Line 2 – stats
+            String stats = String.format(
+                    "§aFPS§r %d   §ePing§r %dms   §dMods§r %d",
+                    fps, ping, active);
+            graphics.drawString(mc.font, stats, 4, 14, 0xFFCCCCCC, true);
+        });
+    }
+
+    /** Readable FPS value used by ZenithScreen's title bar. */
+    public int getFps() { return fps; }
+}
